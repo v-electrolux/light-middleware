@@ -1,0 +1,39 @@
+{
+  "name": "light-middleware",
+  "version": "0.0.1",
+  "description": "nodejs lightweight middleware manager for frameworks like express or polka",
+  "keywords": [
+    "middleware",
+    "cors",
+    "express",
+    "polka",
+    "express-backward-compatibility",
+    "log-middleware",
+    "error-middleware"
+  ],
+  "homepage": "https://github.com/v-electrolux/light-middleware#readme",
+  "bugs": {
+    "url": "https://github.com/v-electrolux/light-middleware/issues"
+  },
+  "license": "ISC",
+  "author": "v-electrolux",
+  "files": [
+    "index.js"
+  ],
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/v-electrolux/light-middleware.git"
+  },
+  "scripts": {
+    "test": "mocha tests/tests.js"
+  },
+  "dependencies": {
+    "request-ip": "2.1.3"
+  },
+  "devDependencies": {
+    "chai": "4.2.0",
+    "mocha": "8.1.0",
+    "nyc": "15.1.0"
+  }
+}

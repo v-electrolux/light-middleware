@@ -1,0 +1,14 @@
+language: node_js
+node_js:
+  - 10
+  - 12
+
+before_script:
+  - npm i -g nyc codecov
+
+script:
+  - nyc npm test
+
+after_success:
+  - nyc report --reporter=text-lcov > coverage.lcov
+  - codecov

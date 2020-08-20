@@ -30,7 +30,7 @@ const express = require("express");
 const app = express();
 
 const MiddlewareManager = require("light-middleware");
-const middlewareManager = new MiddlewareManager(logger , true);
+const middlewareManager = new MiddlewareManager(logger , true, ["Custom-Cors-Header1", "Custom-Cors-Header2"]);
 
 app.use(middlewareManager.catchNotFoundError);
 app.use(middlewareManager.enableCors);

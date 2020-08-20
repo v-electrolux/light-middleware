@@ -100,6 +100,39 @@ describe("should make tests", function () {
         });
     });
 
+    it("should set additional headers for OPTIONS request with enableCors middleware", function (done) {
+        const middlewareManager = new MiddlewareManager(undefined, undefined, ["Custom-Cors-Header"]);
+        const reqStub = {
+            method: "OPTIONS"
+        };
+        const receivedHeaders = {};
+        let receivedStatus = null;
+        let receivedMessage = null;
+        const resStub = {
+            setHeader: (name, value) => receivedHeaders[name] = value,
+            status: status => {
+                receivedStatus = status;
+                return resStub;
+            },
+            end: msg => receivedMessage = msg,
+        };
+        let nextCalled = false;
+        const nextStub = function () {
+            nextCalled = true;
+        };
+        middlewareManager.enableCors(reqStub, resStub, nextStub);
+
+        process.nextTick(function () {
+            expect(receivedHeaders).to.have.property("Access-Control-Allow-Origin", "*");
+            expect(receivedHeaders).to.have.property("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization, Custom-Cors-Header");
+            expect(receivedHeaders).to.have.property("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+            expect(receivedStatus).to.be.equal(200);
+            expect(receivedMessage).to.be.equal("OK");
+            expect(nextCalled).to.be.equal(false);
+            done();
+        });
+    });
+
     it("should set headers for GET request with enableCors middleware", function (done) {
         const middlewareManager = new MiddlewareManager();
         const reqStub = {

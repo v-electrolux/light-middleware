@@ -1,7 +1,15 @@
 "use strict";
 
-function catchNotFoundError(req, res, next) {
-    next(new HttpNotFoundError());
+function createCatchNotFoundErrorMiddleware(errorHandler) {
+    function catchNotFoundError(req, res, next) {
+        const err = new HttpNotFoundError();
+        if (next) {
+            next(err);
+        } else {
+            errorHandler(err, req, res);
+        }
+    }
+    return catchNotFoundError;
 }
 
 class HttpNotFoundError extends Error {
@@ -12,4 +20,4 @@ class HttpNotFoundError extends Error {
     }
 }
 
-module.exports = catchNotFoundError;
+module.exports = createCatchNotFoundErrorMiddleware;

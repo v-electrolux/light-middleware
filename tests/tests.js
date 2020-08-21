@@ -1,391 +1,445 @@
 const expect = require("chai").expect;
 const MiddlewareManager = require("../index");
 
-describe("should make tests", function () {
-    it("should get error from asyncErrorHandler middleware", function (done) {
-        const middlewareManager = new MiddlewareManager();
-        const reqStub = {};
-        const resStub = {};
-        let receivedError = null;
-        const nextStub = function (err) {
-            receivedError = err;
-        };
-        const asyncTestThrowHandler = async function (req, res) {
-            throw new Error("big boom");
-        };
-        const syncTestThrowHandler = middlewareManager.asyncErrorHandler(asyncTestThrowHandler);
-        syncTestThrowHandler(reqStub, resStub, nextStub);
+describe("MiddlewareManager", function () {
 
-        setImmediate(function () {
-            expect(receivedError).to.be.an("error");
-            expect(receivedError.message).to.be.equal("big boom");
-            done();
+    describe("asyncErrorHandler", function () {
+
+        it("should get error", function (done) {
+            const middlewareManager = new MiddlewareManager();
+            const reqStub = {};
+            const resStub = {};
+            let receivedError = null;
+            const nextStub = function (err) {
+                receivedError = err;
+            };
+            const asyncTestThrowHandler = async function (req, res) {
+                throw new Error("big boom");
+            };
+            const syncTestThrowHandler = middlewareManager.asyncErrorHandler(asyncTestThrowHandler);
+            syncTestThrowHandler(reqStub, resStub, nextStub);
+
+            setImmediate(function () {
+                expect(receivedError).to.be.an("error");
+                expect(receivedError.message).to.be.equal("big boom");
+                done();
+            });
         });
+
+        it("should get success result", function (done) {
+            const middlewareManager = new MiddlewareManager();
+            const sentReqStub = {};
+            const sentResStub = {};
+            let errorHandlerExecuted = false;
+            const nextStub = function () {
+                errorHandlerExecuted = true;
+            };
+            let receivedReqStub = null;
+            let receivedResStub = null;
+            const asyncTestSuccessHandler = async function (req, res) {
+                receivedReqStub = req;
+                receivedResStub = res;
+            };
+            const syncTestSuccessHandler = middlewareManager.asyncErrorHandler(asyncTestSuccessHandler);
+            syncTestSuccessHandler(sentReqStub, sentResStub, nextStub);
+
+            process.nextTick(function () {
+                expect(errorHandlerExecuted).to.be.equal(false);
+                expect(receivedReqStub).to.be.equal(sentReqStub);
+                expect(receivedResStub).to.be.equal(sentResStub);
+                done();
+            });
+        });
+
     });
 
-    it("should get success result asyncErrorHandler middleware", function (done) {
-        const middlewareManager = new MiddlewareManager();
-        const sentReqStub = {};
-        const sentResStub = {};
-        let errorHandlerExecuted = false;
-        const nextStub = function () {
-            errorHandlerExecuted = true;
-        };
-        let receivedReqStub = null;
-        let receivedResStub = null;
-        const asyncTestSuccessHandler = async function (req, res) {
-            receivedReqStub = req;
-            receivedResStub = res;
-        };
-        const syncTestSuccessHandler = middlewareManager.asyncErrorHandler(asyncTestSuccessHandler);
-        syncTestSuccessHandler(sentReqStub, sentResStub, nextStub);
+    describe("catchNotFoundError", function () {
 
-        process.nextTick(function () {
-            expect(errorHandlerExecuted).to.be.equal(false);
-            expect(receivedReqStub).to.be.equal(sentReqStub);
-            expect(receivedResStub).to.be.equal(sentResStub);
-            done();
+        it("should get error with next", function (done) {
+            const middlewareManager = new MiddlewareManager();
+            const reqStub = {};
+            const resStub = {};
+            let receivedErr = null;
+            const nextStub = function (err) {
+                receivedErr = err;
+            };
+            middlewareManager.catchNotFoundError(reqStub, resStub, nextStub);
+
+            process.nextTick(function () {
+                expect(receivedErr).to.be.an("error");
+                expect(receivedErr.name).to.be.equal("HttpNotFoundError");
+                expect(receivedErr.message).to.be.equal("Not found");
+                expect(receivedErr.status).to.be.equal(404);
+                done();
+            });
         });
+
+        it("should get error without next", function (done) {
+            const errorMessages = [];
+            const loggerStub = {
+                error: msg => errorMessages.push(msg),
+            };
+            const middlewareManager = new MiddlewareManager(loggerStub, true);
+            const reqStub = {};
+            let receivedStatus = null;
+            let receivedMessage = null;
+            let endCalled = false;
+            const resStub = {
+                headersSent: false,
+                status: (status) => {
+                    receivedStatus = status;
+                    return resStub;
+                },
+                json: (message) => {
+                    receivedMessage = message;
+                    return resStub;
+                },
+                end: _ => endCalled = true,
+            };
+            middlewareManager.catchNotFoundError(reqStub, resStub);
+
+            process.nextTick(function () {
+                expect(resStub.statusMessage).to.be.equal("HttpNotFoundError");
+                expect(receivedStatus).to.be.equal(404);
+                expect(receivedMessage).to.be.eql({ error: 'Not found' });
+                expect(endCalled).to.be.equal(true);
+                expect(errorMessages).to.have.length(1);
+                expect(errorMessages[0]).to.be.equal("HttpNotFoundError: Not found");
+                done();
+            });
+        });
+
     });
 
-    it("should get error from asyncTestSuccessHandler middleware", function (done) {
-        const middlewareManager = new MiddlewareManager();
-        const reqStub = {};
-        const resStub = {};
-        let receivedErr = null;
-        const nextStub = function (err) {
-            receivedErr = err;
-        };
-        middlewareManager.catchNotFoundError(reqStub, resStub, nextStub);
+    describe("enableCors", function () {
 
-        process.nextTick(function () {
-            expect(receivedErr).to.be.an("error");
-            expect(receivedErr.name).to.be.equal("HttpNotFoundError");
-            expect(receivedErr.message).to.be.equal("Not found");
-            expect(receivedErr.status).to.be.equal(404);
-            done();
+        it("should set headers for OPTIONS request", function (done) {
+            const middlewareManager = new MiddlewareManager();
+            const reqStub = {
+                method: "OPTIONS"
+            };
+            const receivedHeaders = {};
+            let receivedStatus = null;
+            let receivedMessage = null;
+            const resStub = {
+                setHeader: (name, value) => receivedHeaders[name] = value,
+                status: status => {
+                    receivedStatus = status;
+                    return resStub;
+                },
+                end: msg => receivedMessage = msg,
+            };
+            let nextCalled = false;
+            const nextStub = function () {
+                nextCalled = true;
+            };
+            middlewareManager.enableCors(reqStub, resStub, nextStub);
+
+            process.nextTick(function () {
+                expect(receivedHeaders).to.have.property("Access-Control-Allow-Origin", "*");
+                expect(receivedHeaders).to.have.property("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+                expect(receivedHeaders).to.have.property("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+                expect(receivedStatus).to.be.equal(200);
+                expect(receivedMessage).to.be.equal("OK");
+                expect(nextCalled).to.be.equal(false);
+                done();
+            });
         });
+
+        it("should set additional headers for OPTIONS request", function (done) {
+            const middlewareManager = new MiddlewareManager(undefined, undefined, ["Custom-Cors-Header"]);
+            const reqStub = {
+                method: "OPTIONS"
+            };
+            const receivedHeaders = {};
+            let receivedStatus = null;
+            let receivedMessage = null;
+            const resStub = {
+                setHeader: (name, value) => receivedHeaders[name] = value,
+                status: status => {
+                    receivedStatus = status;
+                    return resStub;
+                },
+                end: msg => receivedMessage = msg,
+            };
+            let nextCalled = false;
+            const nextStub = function () {
+                nextCalled = true;
+            };
+            middlewareManager.enableCors(reqStub, resStub, nextStub);
+
+            process.nextTick(function () {
+                expect(receivedHeaders).to.have.property("Access-Control-Allow-Origin", "*");
+                expect(receivedHeaders).to.have.property("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization, Custom-Cors-Header");
+                expect(receivedHeaders).to.have.property("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+                expect(receivedStatus).to.be.equal(200);
+                expect(receivedMessage).to.be.equal("OK");
+                expect(nextCalled).to.be.equal(false);
+                done();
+            });
+        });
+
+        it("should set headers for GET request", function (done) {
+            const middlewareManager = new MiddlewareManager();
+            const reqStub = {
+                method: "GET"
+            };
+            const receivedHeaders = {};
+            let statusCalled = false;
+            let endCalled = false;
+            const resStub = {
+                setHeader: (name, value) => receivedHeaders[name] = value,
+                status: _ => {
+                    statusCalled = true;
+                    return resStub;
+                },
+                end: _ => endCalled = true,
+            };
+            let nextCalled = false;
+            const nextStub = function () {
+                nextCalled = true;
+            };
+            middlewareManager.enableCors(reqStub, resStub, nextStub);
+
+            process.nextTick(function () {
+                expect(receivedHeaders).to.have.property("Access-Control-Allow-Origin", "*");
+                expect(receivedHeaders).to.have.property("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
+                expect(receivedHeaders).to.have.property("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
+                expect(statusCalled).to.be.equal(false);
+                expect(endCalled).to.be.equal(false);
+                expect(nextCalled).to.be.equal(true);
+                done();
+            });
+        });
+
     });
 
-    it("should set headers for OPTIONS request with enableCors middleware", function (done) {
-        const middlewareManager = new MiddlewareManager();
-        const reqStub = {
-            method: "OPTIONS"
-        };
-        const receivedHeaders = {};
-        let receivedStatus = null;
-        let receivedMessage = null;
-        const resStub = {
-            setHeader: (name, value) => receivedHeaders[name] = value,
-            status: status => {
-                receivedStatus = status;
-                return resStub;
-            },
-            end: msg => receivedMessage = msg,
-        };
-        let nextCalled = false;
-        const nextStub = function () {
-            nextCalled = true;
-        };
-        middlewareManager.enableCors(reqStub, resStub, nextStub);
+    describe("errorHandler", function () {
 
-        process.nextTick(function () {
-            expect(receivedHeaders).to.have.property("Access-Control-Allow-Origin", "*");
-            expect(receivedHeaders).to.have.property("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
-            expect(receivedHeaders).to.have.property("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
-            expect(receivedStatus).to.be.equal(200);
-            expect(receivedMessage).to.be.equal("OK");
-            expect(nextCalled).to.be.equal(false);
-            done();
+        it("should forward error because headers are sent", function (done) {
+            const errorMessages = [];
+            const loggerStub = {
+                error: msg => errorMessages.push(msg),
+            };
+            const middlewareManager = new MiddlewareManager(loggerStub, true);
+            const reqStub = {};
+            const resStub = {
+                headersSent: true,
+            };
+            let receivedError = null;
+            const nextStub = function (err) {
+                receivedError = err;
+            };
+            const sentError = new Error("big boom");
+            middlewareManager.errorHandler(sentError, reqStub, resStub, nextStub);
+
+            process.nextTick(function () {
+                expect(receivedError).to.be.equal(sentError);
+                expect(errorMessages).to.have.length(1);
+                expect(errorMessages[0]).to.be.equal("[headers sre sent] Error: big boom");
+                done();
+            });
         });
+
+        it("should forward string error because headers are sent", function (done) {
+            const errorMessages = [];
+            const loggerStub = {
+                error: msg => errorMessages.push(msg),
+            };
+            const middlewareManager = new MiddlewareManager(loggerStub, true);
+            const reqStub = {};
+            const resStub = {
+                headersSent: true,
+            };
+            let receivedError = null;
+            const nextStub = function (err) {
+                receivedError = err;
+            };
+            const sentError = "big boom";
+            middlewareManager.errorHandler(sentError, reqStub, resStub, nextStub);
+
+            process.nextTick(function () {
+                expect(receivedError).to.be.an("error");
+                expect(receivedError.message).to.be.equal(sentError);
+                expect(errorMessages).to.have.length(1);
+                expect(errorMessages[0]).to.be.equal("[headers sre sent] big boom");
+                done();
+            });
+        });
+
+        it("should return error with status in no-debug mode", function (done) {
+            const errorMessages = [];
+            const loggerStub = {
+                error: msg => errorMessages.push(msg),
+            };
+            const middlewareManager = new MiddlewareManager(loggerStub, false);
+            const reqStub = {};
+            let receivedStatus = null;
+            let receivedMessage = null;
+            let endCalled = false;
+            const resStub = {
+                headersSent: false,
+                status: (status) => {
+                    receivedStatus = status;
+                    return resStub;
+                },
+                json: (message) => {
+                    receivedMessage = message;
+                    return resStub;
+                },
+                end: _ => endCalled = true,
+            };
+            let nextCalled = false;
+            const nextStub = function () {
+                nextCalled = true;
+            };
+            const sentError = new Error("not auth");
+            sentError.status = 401;
+            middlewareManager.errorHandler(sentError, reqStub, resStub, nextStub);
+
+            process.nextTick(function () {
+                expect(nextCalled).to.be.equal(false);
+                expect(resStub.statusMessage).to.be.equal(undefined);
+                expect(receivedStatus).to.be.equal(401);
+                expect(receivedMessage).to.be.eql({});
+                expect(endCalled).to.be.equal(true);
+                expect(errorMessages).to.have.length(1);
+                expect(errorMessages[0]).to.be.equal("Error: not auth");
+                done();
+            });
+        });
+
+        it("should return error without status in no-debug mode", function (done) {
+            const errorMessages = [];
+            const loggerStub = {
+                error: msg => errorMessages.push(msg),
+            };
+            const middlewareManager = new MiddlewareManager(loggerStub, false);
+            const reqStub = {};
+            let receivedStatus = null;
+            let receivedMessage = null;
+            let endCalled = false;
+            const resStub = {
+                headersSent: false,
+                status: (status) => {
+                    receivedStatus = status;
+                    return resStub;
+                },
+                json: (message) => {
+                    receivedMessage = message;
+                    return resStub;
+                },
+                end: _ => endCalled = true,
+            };
+            let nextCalled = false;
+            const nextStub = function () {
+                nextCalled = true;
+            };
+            const sentError = new Error("not auth");
+            middlewareManager.errorHandler(sentError, reqStub, resStub, nextStub);
+
+            process.nextTick(function () {
+                expect(nextCalled).to.be.equal(false);
+                expect(resStub.statusMessage).to.be.equal(undefined);
+                expect(receivedStatus).to.be.equal(500);
+                expect(receivedMessage).to.be.eql({});
+                expect(endCalled).to.be.equal(true);
+                expect(errorMessages).to.have.length(1);
+                expect(errorMessages[0]).to.be.equal("Error: not auth");
+                done();
+            });
+        });
+
+        it("should return error with status message in debug mode", function (done) {
+            const errorMessages = [];
+            const loggerStub = {
+                error: msg => errorMessages.push(msg),
+            };
+            const middlewareManager = new MiddlewareManager(loggerStub, true);
+            const reqStub = {};
+            let receivedStatus = null;
+            let receivedMessage = null;
+            let endCalled = false;
+            const resStub = {
+                headersSent: false,
+                status: (status) => {
+                    receivedStatus = status;
+                    return resStub;
+                },
+                json: (message) => {
+                    receivedMessage = message;
+                    return resStub;
+                },
+                end: _ => endCalled = true,
+            };
+            let nextCalled = false;
+            const nextStub = function () {
+                nextCalled = true;
+            };
+            const sentError = new Error("not auth");
+            sentError.status = 401;
+            sentError.statusMessage = "Auth needed";
+            middlewareManager.errorHandler(sentError, reqStub, resStub, nextStub);
+
+            process.nextTick(function () {
+                expect(nextCalled).to.be.equal(false);
+                expect(resStub.statusMessage).to.be.equal("Auth needed");
+                expect(receivedStatus).to.be.equal(401);
+                expect(receivedMessage).to.be.eql({ error: "not auth" });
+                expect(endCalled).to.be.equal(true);
+                expect(errorMessages).to.have.length(1);
+                expect(errorMessages[0]).to.be.equal("Error: not auth");
+                done();
+            });
+        });
+
+        it("should return error without status message in debug mode", function (done) {
+            const errorMessages = [];
+            const loggerStub = {
+                error: msg => errorMessages.push(msg),
+            };
+            const middlewareManager = new MiddlewareManager(loggerStub, true);
+            const reqStub = {};
+            let receivedStatus = null;
+            let receivedMessage = null;
+            let endCalled = false;
+            const resStub = {
+                headersSent: false,
+                status: (status) => {
+                    receivedStatus = status;
+                    return resStub;
+                },
+                json: (message) => {
+                    receivedMessage = message;
+                    return resStub;
+                },
+                end: _ => endCalled = true,
+            };
+            let nextCalled = false;
+            const nextStub = function () {
+                nextCalled = true;
+            };
+            const sentError = new Error("not auth");
+            sentError.status = 401;
+            middlewareManager.errorHandler(sentError, reqStub, resStub, nextStub);
+
+            process.nextTick(function () {
+                expect(nextCalled).to.be.equal(false);
+                expect(resStub.statusMessage).to.be.equal("Error");
+                expect(receivedStatus).to.be.equal(401);
+                expect(receivedMessage).to.be.eql({ error: "not auth" });
+                expect(endCalled).to.be.equal(true);
+                expect(errorMessages).to.have.length(1);
+                expect(errorMessages[0]).to.be.equal("Error: not auth");
+                done();
+            });
+        });
+
     });
 
-    it("should set additional headers for OPTIONS request with enableCors middleware", function (done) {
-        const middlewareManager = new MiddlewareManager(undefined, undefined, ["Custom-Cors-Header"]);
-        const reqStub = {
-            method: "OPTIONS"
-        };
-        const receivedHeaders = {};
-        let receivedStatus = null;
-        let receivedMessage = null;
-        const resStub = {
-            setHeader: (name, value) => receivedHeaders[name] = value,
-            status: status => {
-                receivedStatus = status;
-                return resStub;
-            },
-            end: msg => receivedMessage = msg,
-        };
-        let nextCalled = false;
-        const nextStub = function () {
-            nextCalled = true;
-        };
-        middlewareManager.enableCors(reqStub, resStub, nextStub);
+    describe("expressBackwardCompatibility", function () {
 
-        process.nextTick(function () {
-            expect(receivedHeaders).to.have.property("Access-Control-Allow-Origin", "*");
-            expect(receivedHeaders).to.have.property("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization, Custom-Cors-Header");
-            expect(receivedHeaders).to.have.property("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
-            expect(receivedStatus).to.be.equal(200);
-            expect(receivedMessage).to.be.equal("OK");
-            expect(nextCalled).to.be.equal(false);
-            done();
-        });
-    });
-
-    it("should set headers for GET request with enableCors middleware", function (done) {
-        const middlewareManager = new MiddlewareManager();
-        const reqStub = {
-            method: "GET"
-        };
-        const receivedHeaders = {};
-        let statusCalled = false;
-        let endCalled = false;
-        const resStub = {
-            setHeader: (name, value) => receivedHeaders[name] = value,
-            status: _ => {
-                statusCalled = true;
-                return resStub;
-            },
-            end: _ => endCalled = true,
-        };
-        let nextCalled = false;
-        const nextStub = function () {
-            nextCalled = true;
-        };
-        middlewareManager.enableCors(reqStub, resStub, nextStub);
-
-        process.nextTick(function () {
-            expect(receivedHeaders).to.have.property("Access-Control-Allow-Origin", "*");
-            expect(receivedHeaders).to.have.property("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
-            expect(receivedHeaders).to.have.property("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS");
-            expect(statusCalled).to.be.equal(false);
-            expect(endCalled).to.be.equal(false);
-            expect(nextCalled).to.be.equal(true);
-            done();
-        });
-    });
-
-    it("should forward error because headers are sent in errorHandler middleware", function (done) {
-        const errorMessages = [];
-        const loggerStub = {
-            error: msg => errorMessages.push(msg),
-        };
-        const middlewareManager = new MiddlewareManager(loggerStub, true);
-        const reqStub = {};
-        const resStub = {
-            headersSent: true,
-        };
-        let receivedError = null;
-        const nextStub = function (err) {
-            receivedError = err;
-        };
-        const sentError = new Error("big boom");
-        middlewareManager.errorHandler(sentError, reqStub, resStub, nextStub);
-
-        process.nextTick(function () {
-            expect(receivedError).to.be.equal(sentError);
-            expect(errorMessages).to.have.length(1);
-            expect(errorMessages[0]).to.be.equal("[headers sre sent] Error: big boom");
-            done();
-        });
-    });
-
-    it("should forward string error because headers are sent in errorHandler middleware", function (done) {
-        const errorMessages = [];
-        const loggerStub = {
-            error: msg => errorMessages.push(msg),
-        };
-        const middlewareManager = new MiddlewareManager(loggerStub, true);
-        const reqStub = {};
-        const resStub = {
-            headersSent: true,
-        };
-        let receivedError = null;
-        const nextStub = function (err) {
-            receivedError = err;
-        };
-        const sentError = "big boom";
-        middlewareManager.errorHandler(sentError, reqStub, resStub, nextStub);
-
-        process.nextTick(function () {
-            expect(receivedError).to.be.an("error");
-            expect(receivedError.message).to.be.equal(sentError);
-            expect(errorMessages).to.have.length(1);
-            expect(errorMessages[0]).to.be.equal("[headers sre sent] big boom");
-            done();
-        });
-    });
-
-    it("should return error with status in errorHandler middleware in no-debug mode", function (done) {
-        const errorMessages = [];
-        const loggerStub = {
-            error: msg => errorMessages.push(msg),
-        };
-        const middlewareManager = new MiddlewareManager(loggerStub, false);
-        const reqStub = {};
-        let receivedStatus = null;
-        let receivedMessage = null;
-        let endCalled = false;
-        const resStub = {
-            headersSent: false,
-            status: (status) => {
-                receivedStatus = status;
-                return resStub;
-            },
-            json: (message) => {
-                receivedMessage = message;
-                return resStub;
-            },
-            end: _ => endCalled = true,
-        };
-        let nextCalled = false;
-        const nextStub = function () {
-            nextCalled = true;
-        };
-        const sentError = new Error("not auth");
-        sentError.status = 401;
-        middlewareManager.errorHandler(sentError, reqStub, resStub, nextStub);
-
-        process.nextTick(function () {
-            expect(nextCalled).to.be.equal(false);
-            expect(resStub.statusMessage).to.be.equal(undefined);
-            expect(receivedStatus).to.be.equal(401);
-            expect(receivedMessage).to.be.eql({});
-            expect(endCalled).to.be.equal(true);
-            expect(errorMessages).to.have.length(1);
-            expect(errorMessages[0]).to.be.equal("Error: not auth");
-            done();
-        });
-    });
-
-    it("should return error without status in errorHandler middleware in no-debug mode", function (done) {
-        const errorMessages = [];
-        const loggerStub = {
-            error: msg => errorMessages.push(msg),
-        };
-        const middlewareManager = new MiddlewareManager(loggerStub, false);
-        const reqStub = {};
-        let receivedStatus = null;
-        let receivedMessage = null;
-        let endCalled = false;
-        const resStub = {
-            headersSent: false,
-            status: (status) => {
-                receivedStatus = status;
-                return resStub;
-            },
-            json: (message) => {
-                receivedMessage = message;
-                return resStub;
-            },
-            end: _ => endCalled = true,
-        };
-        let nextCalled = false;
-        const nextStub = function () {
-            nextCalled = true;
-        };
-        const sentError = new Error("not auth");
-        middlewareManager.errorHandler(sentError, reqStub, resStub, nextStub);
-
-        process.nextTick(function () {
-            expect(nextCalled).to.be.equal(false);
-            expect(resStub.statusMessage).to.be.equal(undefined);
-            expect(receivedStatus).to.be.equal(500);
-            expect(receivedMessage).to.be.eql({});
-            expect(endCalled).to.be.equal(true);
-            expect(errorMessages).to.have.length(1);
-            expect(errorMessages[0]).to.be.equal("Error: not auth");
-            done();
-        });
-    });
-
-    it("should return error with status message in errorHandler middleware in debug mode", function (done) {
-        const errorMessages = [];
-        const loggerStub = {
-            error: msg => errorMessages.push(msg),
-        };
-        const middlewareManager = new MiddlewareManager(loggerStub, true);
-        const reqStub = {};
-        let receivedStatus = null;
-        let receivedMessage = null;
-        let endCalled = false;
-        const resStub = {
-            headersSent: false,
-            status: (status) => {
-                receivedStatus = status;
-                return resStub;
-            },
-            json: (message) => {
-                receivedMessage = message;
-                return resStub;
-            },
-            end: _ => endCalled = true,
-        };
-        let nextCalled = false;
-        const nextStub = function () {
-            nextCalled = true;
-        };
-        const sentError = new Error("not auth");
-        sentError.status = 401;
-        sentError.statusMessage = "Auth needed";
-        middlewareManager.errorHandler(sentError, reqStub, resStub, nextStub);
-
-        process.nextTick(function () {
-            expect(nextCalled).to.be.equal(false);
-            expect(resStub.statusMessage).to.be.equal("Auth needed");
-            expect(receivedStatus).to.be.equal(401);
-            expect(receivedMessage).to.be.eql({ error: "not auth" });
-            expect(endCalled).to.be.equal(true);
-            expect(errorMessages).to.have.length(1);
-            expect(errorMessages[0]).to.be.equal("Error: not auth");
-            done();
-        });
-    });
-
-    it("should return error without status message in errorHandler middleware in debug mode", function (done) {
-        const errorMessages = [];
-        const loggerStub = {
-            error: msg => errorMessages.push(msg),
-        };
-        const middlewareManager = new MiddlewareManager(loggerStub, true);
-        const reqStub = {};
-        let receivedStatus = null;
-        let receivedMessage = null;
-        let endCalled = false;
-        const resStub = {
-            headersSent: false,
-            status: (status) => {
-                receivedStatus = status;
-                return resStub;
-            },
-            json: (message) => {
-                receivedMessage = message;
-                return resStub;
-            },
-            end: _ => endCalled = true,
-        };
-        let nextCalled = false;
-        const nextStub = function () {
-            nextCalled = true;
-        };
-        const sentError = new Error("not auth");
-        sentError.status = 401;
-        middlewareManager.errorHandler(sentError, reqStub, resStub, nextStub);
-
-        process.nextTick(function () {
-            expect(nextCalled).to.be.equal(false);
-            expect(resStub.statusMessage).to.be.equal("Error");
-            expect(receivedStatus).to.be.equal(401);
-            expect(receivedMessage).to.be.eql({ error: "not auth" });
-            expect(endCalled).to.be.equal(true);
-            expect(errorMessages).to.have.length(1);
-            expect(errorMessages[0]).to.be.equal("Error: not auth");
-            done();
-        });
-    });
-
-    it("should set methods for res with expressBackwardCompatibility middleware", function (done) {
+        it("should set methods for res", function (done) {
         const middlewareManager = new MiddlewareManager();
         const jsonBody = {result: 1};
         const reqStub = {};
@@ -425,143 +479,153 @@ describe("should make tests", function () {
         });
     });
 
-    it("should log success request in logRequest middleware", function (done) {
-        const infoMessages = [];
-        const errorMessages = [];
-        const loggerStub = {
-            info: msg => infoMessages.push(msg),
-            error: msg => errorMessages.push(msg),
-        };
-        const middlewareManager = new MiddlewareManager(loggerStub);
-        const reqStub = {
-            url: "/test/method",
-            method: "POST",
-            headers: {
-                "x-client-ip": "127.0.0.1"
-            },
-            body: {
-                request: "body"
-            },
-        };
-        let receivedMessage = null;
-        let receivedEncoding = null;
-        const resStub = {
-            locals: {
-                start: 1597234999800,
-            },
-            statusCode: 200,
-            end: (msg, encoding) => {
-                receivedMessage = msg;
-                receivedEncoding = encoding;
-            },
-        };
-        let nextCalled = false;
-        const nextStub = function () {
-            nextCalled = true;
-        };
-        middlewareManager.logRequest(reqStub, resStub, nextStub);
-
-        process.nextTick(function () {
-            expect(nextCalled).to.be.equal(true);
-
-            expect(receivedMessage).to.be.equal(null);
-            expect(receivedEncoding).to.be.equal(null);
-            expect(infoMessages).to.have.length(0);
-            expect(errorMessages).to.have.length(0);
-            resStub.end("{\"result\": 1}", "utf8");
-            expect(receivedMessage).to.be.equal("{\"result\": 1}");
-            expect(receivedEncoding).to.be.equal("utf8");
-            expect(infoMessages).to.have.length(1);
-            let infoMsg = infoMessages[0];
-            expect(infoMsg).to.include("HTTP POST /test/method client_ip=127.0.0.1 200 ");
-            infoMsg = infoMsg.replace("HTTP POST /test/method client_ip=127.0.0.1 200 ", "");
-            expect(infoMsg).to.include("ms");
-            infoMsg = infoMsg.replace("ms", "");
-            expect(infoMsg).to.match(/[1234567890]*/);
-            const duration = parseInt(infoMsg);
-            expect(duration).to.be.within(2170122, Date.now() - resStub.locals.start);
-            expect(errorMessages).to.have.length(0);
-
-            done();
-        });
     });
 
-    it("should log success request in logRequest middleware", function (done) {
-        const infoMessages = [];
-        const errorMessages = [];
-        const loggerStub = {
-            info: msg => infoMessages.push(msg),
-            error: msg => errorMessages.push(msg),
-        };
-        const middlewareManager = new MiddlewareManager(loggerStub);
-        const reqStub = {
-            url: "/test/method",
-            method: "POST",
-            headers: {
-                "x-client-ip": "127.0.0.1"
-            },
-            body: {
-                request: "body"
-            },
-        };
-        let receivedMessage = null;
-        let receivedEncoding = null;
-        const resStub = {
-            locals: {
-                start: 1597234999800,
-            },
-            statusCode: 400,
-            end: (msg, encoding) => {
-                receivedMessage = msg;
-                receivedEncoding = encoding;
-            },
-        };
-        let nextCalled = false;
-        const nextStub = function () {
-            nextCalled = true;
-        };
-        middlewareManager.logRequest(reqStub, resStub, nextStub);
+    describe("logRequest", function () {
 
-        process.nextTick(function () {
-            expect(nextCalled).to.be.equal(true);
+        it("should log successful request", function (done) {
+            const infoMessages = [];
+            const errorMessages = [];
+            const loggerStub = {
+                info: msg => infoMessages.push(msg),
+                error: msg => errorMessages.push(msg),
+            };
+            const middlewareManager = new MiddlewareManager(loggerStub);
+            const reqStub = {
+                url: "/test/method",
+                method: "POST",
+                headers: {
+                    "x-client-ip": "127.0.0.1"
+                },
+                body: {
+                    request: "body"
+                },
+            };
+            let receivedMessage = null;
+            let receivedEncoding = null;
+            const resStub = {
+                locals: {
+                    start: 1597234999800,
+                },
+                statusCode: 200,
+                end: (msg, encoding) => {
+                    receivedMessage = msg;
+                    receivedEncoding = encoding;
+                },
+            };
+            let nextCalled = false;
+            const nextStub = function () {
+                nextCalled = true;
+            };
+            middlewareManager.logRequest(reqStub, resStub, nextStub);
 
-            expect(receivedMessage).to.be.equal(null);
-            expect(receivedEncoding).to.be.equal(null);
-            expect(infoMessages).to.have.length(0);
-            expect(errorMessages).to.have.length(0);
-            resStub.end("{\"result\": 1}", "utf8");
-            expect(receivedMessage).to.be.equal("{\"result\": 1}");
-            expect(receivedEncoding).to.be.equal("utf8");
-            expect(errorMessages).to.have.length(1);
-            let errorMsg = errorMessages[0];
-            expect(errorMsg).to.include("HTTP POST /test/method client_ip=127.0.0.1 400 ");
-            errorMsg = errorMsg.replace("HTTP POST /test/method client_ip=127.0.0.1 400 ", "");
-            expect(errorMsg).to.include("ms request_body={\"request\":\"body\"} response_body={\"result\": 1}");
-            errorMsg = errorMsg.replace("ms request_body={\"request\":\"body\"} response_body={\"result\": 1}", "");
-            expect(errorMsg).to.match(/^[0-9]*$/);
-            const duration = parseInt(errorMsg);
-            expect(duration).to.be.within(2170122, Date.now() - resStub.locals.start);
-            expect(infoMessages).to.have.length(0);
+            process.nextTick(function () {
+                expect(nextCalled).to.be.equal(true);
 
-            done();
+                expect(receivedMessage).to.be.equal(null);
+                expect(receivedEncoding).to.be.equal(null);
+                expect(infoMessages).to.have.length(0);
+                expect(errorMessages).to.have.length(0);
+                resStub.end("{\"result\": 1}", "utf8");
+                expect(receivedMessage).to.be.equal("{\"result\": 1}");
+                expect(receivedEncoding).to.be.equal("utf8");
+                expect(infoMessages).to.have.length(1);
+                let infoMsg = infoMessages[0];
+                expect(infoMsg).to.include("HTTP POST /test/method client_ip=127.0.0.1 200 ");
+                infoMsg = infoMsg.replace("HTTP POST /test/method client_ip=127.0.0.1 200 ", "");
+                expect(infoMsg).to.include("ms");
+                infoMsg = infoMsg.replace("ms", "");
+                expect(infoMsg).to.match(/[1234567890]*/);
+                const duration = parseInt(infoMsg);
+                expect(duration).to.be.within(2170122, Date.now() - resStub.locals.start);
+                expect(errorMessages).to.have.length(0);
+
+                done();
+            });
         });
+
+        it("should log failed request", function (done) {
+            const infoMessages = [];
+            const errorMessages = [];
+            const loggerStub = {
+                info: msg => infoMessages.push(msg),
+                error: msg => errorMessages.push(msg),
+            };
+            const middlewareManager = new MiddlewareManager(loggerStub);
+            const reqStub = {
+                url: "/test/method",
+                method: "POST",
+                headers: {
+                    "x-client-ip": "127.0.0.1"
+                },
+                body: {
+                    request: "body"
+                },
+            };
+            let receivedMessage = null;
+            let receivedEncoding = null;
+            const resStub = {
+                locals: {
+                    start: 1597234999800,
+                },
+                statusCode: 400,
+                end: (msg, encoding) => {
+                    receivedMessage = msg;
+                    receivedEncoding = encoding;
+                },
+            };
+            let nextCalled = false;
+            const nextStub = function () {
+                nextCalled = true;
+            };
+            middlewareManager.logRequest(reqStub, resStub, nextStub);
+
+            process.nextTick(function () {
+                expect(nextCalled).to.be.equal(true);
+
+                expect(receivedMessage).to.be.equal(null);
+                expect(receivedEncoding).to.be.equal(null);
+                expect(infoMessages).to.have.length(0);
+                expect(errorMessages).to.have.length(0);
+                resStub.end("{\"result\": 1}", "utf8");
+                expect(receivedMessage).to.be.equal("{\"result\": 1}");
+                expect(receivedEncoding).to.be.equal("utf8");
+                expect(errorMessages).to.have.length(1);
+                let errorMsg = errorMessages[0];
+                expect(errorMsg).to.include("HTTP POST /test/method client_ip=127.0.0.1 400 ");
+                errorMsg = errorMsg.replace("HTTP POST /test/method client_ip=127.0.0.1 400 ", "");
+                expect(errorMsg).to.include("ms request_body={\"request\":\"body\"} response_body={\"result\": 1}");
+                errorMsg = errorMsg.replace("ms request_body={\"request\":\"body\"} response_body={\"result\": 1}", "");
+                expect(errorMsg).to.match(/^[0-9]*$/);
+                const duration = parseInt(errorMsg);
+                expect(duration).to.be.within(2170122, Date.now() - resStub.locals.start);
+                expect(infoMessages).to.have.length(0);
+
+                done();
+            });
+        });
+
     });
 
-    it("should test setStartRequestTimestamp middleware", function (done) {
-        const middlewareManager = new MiddlewareManager();
-        const startTimestamp = Date.now();
-        const reqStub = {};
-        const resStub = {};
-        let nextCalled = false;
-        const nextStub = function () {
-            nextCalled = true;
-        };
-        middlewareManager.setStartRequestTimestamp(reqStub, resStub, nextStub);
+    describe("setStartRequestTimestamp", function () {
 
-        process.nextTick(function () {
-            expect(resStub).to.have.nested.property("locals.start").that.is.a("number").within(startTimestamp, Date.now());
-            expect(nextCalled).to.be.equal(true);
-            done();
+        it("should set start time", function (done) {
+            const middlewareManager = new MiddlewareManager();
+            const startTimestamp = Date.now();
+            const reqStub = {};
+            const resStub = {};
+            let nextCalled = false;
+            const nextStub = function () {
+                nextCalled = true;
+            };
+            middlewareManager.setStartRequestTimestamp(reqStub, resStub, nextStub);
+
+            process.nextTick(function () {
+                expect(resStub).to.have.nested.property("locals.start").that.is.a("number").within(startTimestamp, Date.now());
+                expect(nextCalled).to.be.equal(true);
+                done();
+            });
         });
+
     });
 });

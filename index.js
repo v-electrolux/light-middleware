@@ -1,6 +1,6 @@
 "use strict";
 const asyncErrorHandler = require("./middlewares/asyncErrorHandler");
-const catchNotFoundError = require("./middlewares/catchNotFoundError");
+const createCatchNotFoundErrorMiddleware = require("./middlewares/catchNotFoundError");
 const createEnableCorsMiddleware = require("./middlewares/enableCors");
 const createErrorHandlerMiddleware = require("./middlewares/errorHandler");
 const expressBackwardCompatibility = require("./middlewares/expressBackwardCompatibility");
@@ -9,10 +9,12 @@ const setStartRequestTimestamp = require("./middlewares/setStartRequestTimestamp
 
 class MiddlewareManager {
     constructor(logger, debug, allowAdditionalHeadersForCors) {
+        const errorHandler = createErrorHandlerMiddleware(logger, debug);
+
         this.asyncErrorHandler = asyncErrorHandler;
-        this.catchNotFoundError = catchNotFoundError;
+        this.catchNotFoundError = createCatchNotFoundErrorMiddleware(errorHandler);
         this.enableCors = createEnableCorsMiddleware(allowAdditionalHeadersForCors);
-        this.errorHandler = createErrorHandlerMiddleware(logger, debug);
+        this.errorHandler = errorHandler;
         this.expressBackwardCompatibility = expressBackwardCompatibility;
         this.logRequest = createLogRequestMiddleware(logger);
         this.setStartRequestTimestamp = setStartRequestTimestamp;

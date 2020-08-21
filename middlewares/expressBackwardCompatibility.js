@@ -6,7 +6,7 @@ function expressBackwardCompatibility(req, res, next) {
         return res;
     };
     res.json = function (responseBody) {
-        res.setHeader("Content-Type", "application/json");
+        res.setHeader("Content-Type", "application/json; charset=utf-8");
         const responseBodyString = JSON.stringify(responseBody);
         const contentLength = Buffer.byteLength(responseBodyString);
         res.setHeader("Content-Length", contentLength);

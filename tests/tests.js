@@ -469,7 +469,7 @@ describe("MiddlewareManager", function () {
             expect(receivedHeaders).not.to.have.property("Content-Type");
             expect(receivedHeaders).not.to.have.property("Content-Length");
             expect(resStub.json(jsonBody)).to.be.equal(resStub);
-            expect(receivedHeaders).to.have.property("Content-Type", "application/json");
+            expect(receivedHeaders).to.have.property("Content-Type", "application/json; charset=utf-8");
             expect(receivedHeaders).to.have.property("Content-Length", 12);
             expect(receivedMessage).to.be.equal("{\"result\":1}");
             expect(receivedEncoding).to.be.equal("utf8");

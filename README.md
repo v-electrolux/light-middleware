@@ -17,6 +17,7 @@ $ npm install light-middleware
 - logRequest - middleware for simple logging, you can use any logger module with log, error, info, fatal methods
 - setStartRequestTimestamp - middleware that set starting time of request (for calculating duration for example)
 - asyncErrorHandler - wraps async handler and converts it to classic express-handler style
+- logWebSocketRequest - method for simple logging web socket connect/disconnect, you can use any logger, like in logRequest middleware
 
 ## Example
 
@@ -38,6 +39,16 @@ app.use(middlewareManager.errorHandler);
 app.use(middlewareManager.expressBackwardCompatibility);
 app.use(middlewareManager.logRequest);
 app.use(middlewareManager.setStartRequestTimestamp);
+
+const webSocketServer = new WebSocket.Server({noServer: true});
+webSocketServer.on("connection", function (ws, req) {
+    middlewareManager.logWebSocketRequest(req);
+    ws.once("close", function (code, reason) {
+        middlewareManager.logWebSocketRequest(req, code, reason);
+    });
+    
+    // handle new client connection
+});
 
 // use as a wrapper for middleware handler
 const testMiddlewareHandler = async function (req, res, next) {

@@ -607,6 +607,88 @@ describe("MiddlewareManager", function () {
 
     });
 
+    describe("logWebSocketRequest", function () {
+
+        it("should log web socket connect", function (done) {
+            const infoMessages = [];
+            const errorMessages = [];
+            const loggerStub = {
+                info: msg => infoMessages.push(msg),
+                error: msg => errorMessages.push(msg),
+            };
+            const middlewareManager = new MiddlewareManager(loggerStub);
+            const reqStub = {
+                url: "/subscribe/new",
+                method: "GET",
+                headers: {
+                    "x-client-ip": "127.0.0.1"
+                },
+            };
+            middlewareManager.logWebSocketRequest(reqStub);
+
+            process.nextTick(function () {
+                expect(errorMessages).to.have.length(0);
+                expect(infoMessages).to.have.length(1);
+                let infoMsg = infoMessages[0];
+                expect(infoMsg).to.be.equal("WS GET /subscribe/new client_ip=127.0.0.1");
+                done();
+            });
+        });
+
+        it("should log web socket successful disconnect", function (done) {
+            const infoMessages = [];
+            const errorMessages = [];
+            const loggerStub = {
+                info: msg => infoMessages.push(msg),
+                error: msg => errorMessages.push(msg),
+            };
+            const middlewareManager = new MiddlewareManager(loggerStub);
+            const reqStub = {
+                url: "/subscribe/new",
+                method: "GET",
+                headers: {
+                    "x-client-ip": "127.0.0.1"
+                },
+            };
+            middlewareManager.logWebSocketRequest(reqStub, 1005, "No status sent");
+
+            process.nextTick(function () {
+                expect(errorMessages).to.have.length(0);
+                expect(infoMessages).to.have.length(1);
+                let infoMsg = infoMessages[0];
+                expect(infoMsg).to.be.equal("WS GET /subscribe/new client_ip=127.0.0.1 close_code=1005 reason=No status sent");
+                done();
+            });
+        });
+
+        it("should log web socket abnormal disconnect", function (done) {
+            const infoMessages = [];
+            const errorMessages = [];
+            const loggerStub = {
+                info: msg => infoMessages.push(msg),
+                error: msg => errorMessages.push(msg),
+            };
+            const middlewareManager = new MiddlewareManager(loggerStub);
+            const reqStub = {
+                url: "/subscribe/new",
+                method: "GET",
+                headers: {
+                    "x-client-ip": "127.0.0.1"
+                },
+            };
+            middlewareManager.logWebSocketRequest(reqStub, 1006, "No close code frame has been receieved");
+
+            process.nextTick(function () {
+                expect(infoMessages).to.have.length(0);
+                expect(errorMessages).to.have.length(1);
+                let errorMsg = errorMessages[0];
+                expect(errorMsg).to.be.equal("WS GET /subscribe/new client_ip=127.0.0.1 close_code=1006 reason=No close code frame has been receieved");
+                done();
+            });
+        });
+
+    });
+
     describe("setStartRequestTimestamp", function () {
 
         it("should set start time", function (done) {

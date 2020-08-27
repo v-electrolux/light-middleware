@@ -13,13 +13,25 @@ function createLogWebSocketRequestMiddleware(logger) {
         const method = req.method;
         const url = req.url;
         const clientIp = requestIp.getClientIp(req);
+        const statusCode = req.statusCode;
 
         if (!code) {
-            const infoMessage = util.format("WS %s %s client_ip=%s", method, url, clientIp);
+            const infoMessage = util.format("WS %s %s%s client_ip=%s",
+                method,
+                url,
+                statusCode ? " " + statusCode : "",
+                clientIp,
+            );
             logger.info(infoMessage);
         } else {
-            const message = util.format("WS %s %s client_ip=%s close_code=%s%s", method, url, clientIp, code,
-                reason ? " reason=" + reason : "");
+            const message = util.format("WS %s %s%s client_ip=%s close_code=%s%s",
+                method,
+                url,
+                statusCode ? " " + statusCode : "",
+                clientIp,
+                code,
+                reason ? " reason=" + reason : "",
+            );
 
             if ((code === WsCloseCodes.CLOSE_NORMAL) ||
                 (code === WsCloseCodes.CLOSE_GOING_AWAY) ||

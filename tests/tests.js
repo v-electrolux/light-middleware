@@ -661,6 +661,33 @@ describe("MiddlewareManager", function () {
             });
         });
 
+        it("should log web socket 404", function (done) {
+            const infoMessages = [];
+            const errorMessages = [];
+            const loggerStub = {
+                info: msg => infoMessages.push(msg),
+                error: msg => errorMessages.push(msg),
+            };
+            const middlewareManager = new MiddlewareManager(loggerStub);
+            const reqStub = {
+                url: "/subscribe/not_exist",
+                method: "GET",
+                headers: {
+                    "x-client-ip": "127.0.0.1"
+                },
+                statusCode: 404,
+            };
+            middlewareManager.logWebSocketRequest(reqStub);
+
+            process.nextTick(function () {
+                expect(errorMessages).to.have.length(0);
+                expect(infoMessages).to.have.length(1);
+                let infoMsg = infoMessages[0];
+                expect(infoMsg).to.be.equal("WS GET /subscribe/not_exist 404 client_ip=127.0.0.1");
+                done();
+            });
+        });
+
         it("should log web socket abnormal disconnect", function (done) {
             const infoMessages = [];
             const errorMessages = [];

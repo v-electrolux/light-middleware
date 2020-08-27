@@ -1,6 +1,6 @@
 {
   "name": "light-middleware",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "nodejs lightweight middleware manager for frameworks like express or polka",
   "keywords": [
     "middleware",

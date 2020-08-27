@@ -14,20 +14,26 @@ function createLogWebSocketRequestMiddleware(logger) {
         const url = req.url;
         const clientIp = requestIp.getClientIp(req);
         const statusCode = req.statusCode;
+        const stringStatusCode = statusCode ? " " + statusCode : "";
 
+        let message;
         if (!code) {
-            const infoMessage = util.format("WS %s %s%s client_ip=%s",
+            message = util.format("WS %s %s%s client_ip=%s",
                 method,
                 url,
-                statusCode ? " " + statusCode : "",
+                stringStatusCode,
                 clientIp,
             );
-            logger.info(infoMessage);
+            if (!statusCode || statusCode < 300) {
+                logger.info(message);
+            } else {
+                logger.error(message);
+            }
         } else {
-            const message = util.format("WS %s %s%s client_ip=%s close_code=%s%s",
+            message = util.format("WS %s %s%s client_ip=%s close_code=%s%s",
                 method,
                 url,
-                statusCode ? " " + statusCode : "",
+                stringStatusCode,
                 clientIp,
                 code,
                 reason ? " reason=" + reason : "",

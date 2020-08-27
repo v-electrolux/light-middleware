@@ -680,10 +680,10 @@ describe("MiddlewareManager", function () {
             middlewareManager.logWebSocketRequest(reqStub);
 
             process.nextTick(function () {
-                expect(errorMessages).to.have.length(0);
-                expect(infoMessages).to.have.length(1);
-                let infoMsg = infoMessages[0];
-                expect(infoMsg).to.be.equal("WS GET /subscribe/not_exist 404 client_ip=127.0.0.1");
+                expect(errorMessages).to.have.length(1);
+                expect(infoMessages).to.have.length(0);
+                let msg = errorMessages[0];
+                expect(msg).to.be.equal("WS GET /subscribe/not_exist 404 client_ip=127.0.0.1");
                 done();
             });
         });

@@ -37,8 +37,12 @@ app.use(middlewareManager.catchNotFoundError);
 app.use(middlewareManager.enableCors);
 app.use(middlewareManager.errorHandler);
 app.use(middlewareManager.expressBackwardCompatibility);
+app.use(middlewareManager.compressJson);
 app.use(middlewareManager.logRequest);
 app.use(middlewareManager.setStartRequestTimestamp);
+
+//use json response compressed by snappy
+res.compressJson({result: 1});
 
 const webSocketServer = new WebSocket.Server({noServer: true});
 webSocketServer.on("connection", function (ws, req) {

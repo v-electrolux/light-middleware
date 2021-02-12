@@ -7,6 +7,7 @@ const expressBackwardCompatibility = require("./middlewares/expressBackwardCompa
 const createLogRequestMiddleware = require("./middlewares/logRequest");
 const createLogWebSocketRequestMiddleware = require("./middlewares/logWebSocketRequest");
 const setStartRequestTimestamp = require("./middlewares/setStartRequestTimestamp");
+const compressJson = require("./middlewares/compressJson");
 
 class MiddlewareManager {
     constructor(logger, debug, allowAdditionalHeadersForCors) {
@@ -20,6 +21,7 @@ class MiddlewareManager {
         this.logRequest = createLogRequestMiddleware(logger);
         this.logWebSocketRequest = createLogWebSocketRequestMiddleware(logger);
         this.setStartRequestTimestamp = setStartRequestTimestamp;
+        this.compressJson = compressJson;
     }
 }
 

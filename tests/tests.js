@@ -1,4 +1,5 @@
 const expect = require("chai").expect;
+const snappyjs = require("snappyjs");
 const MiddlewareManager = require("../index");
 
 describe("MiddlewareManager", function () {
@@ -731,6 +732,46 @@ describe("MiddlewareManager", function () {
 
             process.nextTick(function () {
                 expect(resStub).to.have.nested.property("locals.start").that.is.a("number").within(startTimestamp, Date.now());
+                expect(nextCalled).to.be.equal(true);
+                done();
+            });
+        });
+
+    });
+
+    describe("compressJson", function () {
+
+        it("should set method for sending compressed json for res", function (done) {
+            const middlewareManager = new MiddlewareManager();
+            const jsonBody = {result: 1};
+            const reqStub = {};
+            const receivedHeaders = {};
+            let receivedMessage = null;
+            let receivedEncoding = null;
+            const resStub = {
+                setHeader: (name, value) => receivedHeaders[name] = value,
+                end: (message, encoding) => {
+                    receivedMessage = message;
+                    receivedEncoding = encoding;
+                },
+            };
+            let nextCalled = false;
+            const nextStub = function () {
+                nextCalled = true;
+            };
+            middlewareManager.compressJson(reqStub, resStub, nextStub);
+
+            process.nextTick(function () {
+                expect(resStub).to.have.property("compressJson").that.is.a("function");
+                expect(receivedHeaders).not.to.have.property("Content-Type");
+                expect(receivedHeaders).not.to.have.property("Content-Length");
+                expect(resStub.compressJson(jsonBody)).to.be.equal(resStub);
+                expect(receivedHeaders).to.have.property("Content-Type", "application/octet-stream");
+                expect(receivedHeaders).to.have.property("Content-Length", 12);
+                expect(receivedMessage.toString()).to.be.equal("\f,{\"result\":1}");
+                expect(snappyjs.uncompress(receivedMessage).toString()).to.be.equal("{\"result\":1}");
+                expect(receivedEncoding).to.be.equal(undefined);
+
                 expect(nextCalled).to.be.equal(true);
                 done();
             });

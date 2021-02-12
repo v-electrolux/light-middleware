@@ -1,6 +1,6 @@
 {
   "name": "light-middleware",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "description": "nodejs lightweight middleware manager for frameworks like express or polka",
   "keywords": [
     "middleware",
@@ -30,6 +30,7 @@
     "test": "mocha tests/tests.js"
   },
   "dependencies": {
+    "snappyjs": "0.6.0",
     "request-ip": "2.1.3"
   },
   "devDependencies": {

@@ -767,7 +767,7 @@ describe("MiddlewareManager", function () {
                 expect(receivedHeaders).not.to.have.property("Content-Length");
                 expect(resStub.compressJson(jsonBody)).to.be.equal(resStub);
                 expect(receivedHeaders).to.have.property("Content-Type", "application/octet-stream");
-                expect(receivedHeaders).to.have.property("Content-Length", 12);
+                expect(receivedHeaders).to.have.property("Content-Length", 14);
                 expect(receivedMessage.toString()).to.be.equal("\f,{\"result\":1}");
                 expect(snappyjs.uncompress(receivedMessage).toString()).to.be.equal("{\"result\":1}");
                 expect(receivedEncoding).to.be.equal(undefined);

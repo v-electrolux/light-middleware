@@ -22,7 +22,8 @@ function createLogRequestMiddleware(logger) {
             } else {
                 const requestBody = JSON.stringify(req.body);
                 const responseBody = chunk ? chunk.toString() : "";
-                const errorMessage = util.format("HTTP %s %s client_ip=%s %s %sms request_body=%s response_body=%s", method, url, clientIp, statusCode, duration, requestBody, responseBody);
+                const headers = JSON.stringify(req.headers)
+                const errorMessage = util.format("HTTP %s %s client_ip=%s %s %sms headers=%s request_body=%s response_body=%s", method, url, clientIp, statusCode, duration, headers, requestBody, responseBody);
                 logger.error(errorMessage);
             }
         };

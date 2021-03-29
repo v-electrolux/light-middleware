@@ -595,8 +595,8 @@ describe("MiddlewareManager", function () {
                 let errorMsg = errorMessages[0];
                 expect(errorMsg).to.include("HTTP POST /test/method client_ip=127.0.0.1 400 ");
                 errorMsg = errorMsg.replace("HTTP POST /test/method client_ip=127.0.0.1 400 ", "");
-                expect(errorMsg).to.include("ms request_body={\"request\":\"body\"} response_body={\"result\": 1}");
-                errorMsg = errorMsg.replace("ms request_body={\"request\":\"body\"} response_body={\"result\": 1}", "");
+                expect(errorMsg).to.include("ms headers={\"x-client-ip\":\"127.0.0.1\"} request_body={\"request\":\"body\"} response_body={\"result\": 1}");
+                errorMsg = errorMsg.replace("ms headers={\"x-client-ip\":\"127.0.0.1\"} request_body={\"request\":\"body\"} response_body={\"result\": 1}", "");
                 expect(errorMsg).to.match(/^[0-9]*$/);
                 const duration = parseInt(errorMsg);
                 expect(duration).to.be.within(2170122, Date.now() - resStub.locals.start);
